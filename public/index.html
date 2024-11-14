@@ -44,7 +44,7 @@
             font-weight: bold;
             color: black;
         }
-        textarea, input[type="text"], input[type="password"], select {
+        textarea, input[type="text"], input[type="password"] {
             width: 100%;
             padding: 12px;
             margin-top: 8px;
@@ -56,7 +56,7 @@
             background-color: white;
             color: black;
         }
-        textarea:focus, input[type="text"]:focus, input[type="password"]:focus, select:focus {
+        textarea:focus, input[type="text"]:focus, input[type="password"]:focus {
             outline: none;
             border-color: #8181aa;
         }
@@ -66,9 +66,6 @@
         }
         input[type="text"], input[type="password"] {
             height: 50px;
-        }
-        select {
-            height: auto;
         }
         button {
             display: block;
@@ -228,6 +225,18 @@
             color: #3498db;
             text-decoration: underline;
         }
+        /* Styles for checkboxes */
+        .checkbox-group {
+            margin-top: 10px;
+        }
+        .checkbox-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: normal;
+        }
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 10px;
+        }
         /* Responsive Design */
         @media (max-width: 600px) {
             .container {
@@ -274,20 +283,13 @@
                 <label for="query">Output Expectations:</label>
                 <textarea id="query" readonly>I want you to generate themes that would answer the questions I pose. Provide the output in CSV format with the following columns: Theme, Description, Explanation. Do not include any additional text or explanations.</textarea>
 
-                <label for="additional-columns">Select Additional Output Columns:</label>
-                <select id="additional-columns" multiple>
-                    <option value="Relevant Quotes">Relevant Quotes</option>
-                    <option value="Speaker Names">Speaker Names</option>
-                    <option value="Frequency">Frequency</option>
-                    <option value="Emotions Expressed">Emotions Expressed</option>
-                    <option value="Challenges Discussed">Challenges Discussed</option>
-                    <option value="Suggestions or Solutions">Suggestions or Solutions</option>
-                    <option value="Questions Raised">Questions Raised</option>
-                    <option value="Agreement Level">Agreement Level</option>
-                    <option value="Keywords">Keywords</option>
-                    <option value="Educational Concepts">Educational Concepts</option>
-                </select>
-                <p class="note">Note: Hold down the Ctrl (Windows) or Command (Mac) button to select multiple options.</p>
+                <label>Select Additional Output Columns:</label>
+                <div id="additional-columns" class="checkbox-group">
+                    <label><input type="checkbox" name="additional-columns" value="Relevant Quotes"> Relevant Quotes</label>
+                    <label><input type="checkbox" name="additional-columns" value="Speaker Names"> Speaker Names</label>
+
+                    <label><input type="checkbox" name="additional-columns" value="Keywords"> Keywords</label>
+                </div>
             </div>
             
             <button type="submit">CAILyze!</button>
@@ -299,12 +301,12 @@
             <div class="green-bar"></div>
             <!-- Add a select all checkbox and merge button -->
             <div>
-                <span class="select-all" id="select-all">Select All Rows</span>
+                <span class="select-all" id="select-all">Select All</span>
                 <button id="merge-selected-btn" class="download-button merge-button" style="display: none;">Merge Selected Rows</button>
             </div>
             <div id="result-content" class="result-content"></div>
             <button id="download-btn" class="download-button" style="display: none;">Download CSV</button>
-            <button id="rerun-btn" class="download-button" style="display: none; margin-left: 10px;">Rerun Analysis</button>
+            <button id="rerun-btn" class="download-button" style="display: none; margin-left: 10px;">CAILyze! Again!</button>
         </div>
     </div>
 
@@ -534,9 +536,9 @@
             var preprompt = document.getElementById('preprompt').value;
             var query = document.getElementById('query').value;
 
-            // Collect selected additional columns from the dropdown
-            var additionalColumnsSelect = document.getElementById('additional-columns');
-            var selectedOptions = Array.from(additionalColumnsSelect.selectedOptions).map(option => option.value);
+            // Collect selected additional columns from the checkboxes
+            var additionalColumnsCheckboxes = document.querySelectorAll('input[name="additional-columns"]:checked');
+            var selectedOptions = Array.from(additionalColumnsCheckboxes).map(checkbox => checkbox.value);
             var additionalColumns = selectedOptions.join(', ');
 
             var dataFileInput = document.getElementById('data-file');
@@ -619,4 +621,3 @@
     </script>
 </body>
 </html>
-
