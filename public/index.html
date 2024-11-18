@@ -287,7 +287,6 @@
                 <div id="additional-columns" class="checkbox-group">
                     <label><input type="checkbox" name="additional-columns" value="Relevant Quotes"> Relevant Quotes</label>
                     <label><input type="checkbox" name="additional-columns" value="Speaker Names"> Speaker Names</label>
-
                     <label><input type="checkbox" name="additional-columns" value="Keywords"> Keywords</label>
                 </div>
             </div>
@@ -299,10 +298,11 @@
         <div id="result-container" class="result-container" style="display:none;">
             <h2>Analysis Result</h2>
             <div class="green-bar"></div>
-            <!-- Add a select all checkbox and merge button -->
+            <!-- Add a select all checkbox, merge button, and undo button -->
             <div>
                 <span class="select-all" id="select-all">Select All</span>
                 <button id="merge-selected-btn" class="download-button merge-button" style="display: none;">Merge Selected Rows</button>
+                <button id="undo-btn" class="download-button" style="display: none;">Undo</button>
             </div>
             <div id="result-content" class="result-content"></div>
             <button id="download-btn" class="download-button" style="display: none;">Download CSV</button>
@@ -317,6 +317,7 @@
         var resultContainer = document.getElementById('result-container');
         var existingRows = []; // To store existing rows
         var headers = []; // To store headers globally
+        var lastAction = null; // To store the last action for undo functionality
 
         // Handle file upload button
         document.getElementById('upload-btn').addEventListener('click', function() {
@@ -391,7 +392,7 @@
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.classList.add('row-checkbox');
-                checkbox.dataset.index = rowIndex;
+                checkbox.dataset.index = rowIndex; // Ensure indices are updated
                 selectCell.appendChild(checkbox);
 
                 headers.forEach(headerText => {
@@ -401,6 +402,7 @@
 
                 // Add actions cell
                 const actionCell = row.insertCell();
+
                 // Delete button
                 const deleteBtn = document.createElement('button');
                 deleteBtn.textContent = 'Delete';
@@ -415,8 +417,17 @@
         }
 
         function deleteRow(index) {
+            // Save the state before deletion
+            lastAction = {
+                type: 'delete',
+                previousRows: JSON.parse(JSON.stringify(existingRows)),
+            };
+
             existingRows.splice(index, 1);
             refreshTable();
+
+            // Show the undo button
+            document.getElementById('undo-btn').style.display = 'inline-block';
         }
 
         function refreshTable() {
@@ -424,8 +435,14 @@
             var table = generateTable(headers, existingRows);
             resultContent.innerHTML = '';
             resultContent.appendChild(table);
+
             // Re-bind events for checkboxes
             bindRowCheckboxEvents();
+
+            // Hide the undo button if there's no last action
+            if (!lastAction || (lastAction.type !== 'merge' && lastAction.type !== 'delete')) {
+                document.getElementById('undo-btn').style.display = 'none';
+            }
         }
 
         function bindRowCheckboxEvents() {
@@ -464,6 +481,12 @@
                 return;
             }
 
+            // Save the current state before merging
+            lastAction = {
+                type: 'merge',
+                previousRows: JSON.parse(JSON.stringify(existingRows)),
+            };
+
             // Merge the selected rows
             const mergedRow = {};
             headers.forEach(header => {
@@ -491,7 +514,30 @@
 
             // Refresh the table
             refreshTable();
+
+            // Show the undo button
+            document.getElementById('undo-btn').style.display = 'inline-block';
         }
+
+        function undoLastAction() {
+            if (lastAction && (lastAction.type === 'merge' || lastAction.type === 'delete')) {
+                existingRows = lastAction.previousRows;
+                refreshTable();
+
+                // Hide the undo button after undoing
+                document.getElementById('undo-btn').style.display = 'none';
+
+                // Clear the lastAction variable
+                lastAction = null;
+            } else {
+                alert('No action to undo.');
+            }
+        }
+
+        // Event listener for the undo button
+        document.getElementById('undo-btn').addEventListener('click', function() {
+            undoLastAction();
+        });
 
         function downloadCSV(csvData, filename) {
             var blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
