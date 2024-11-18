@@ -4,14 +4,14 @@
 2. Extract the files
 3. Run the program by clicking **cail-backend-win-x64.exe**
 4. If you see "Windows Protected Your PC" click **"More Info"**
-![Windows Protected](win1.png)
+![Windows Protected](screenshots/win1.png)
 5. Click **"Run anyway"**
-![Windows Protected](win2.png)
+![Windows Protected](screenshots/win2.png)
 6. If everything went correctly the server will be running.
-![Windows Protected](win3.png)
+![Windows Protected](screenshots/win3.png)
 7. Open Chrome and go to  https://localhost:3000 YOU MUST BE USING HTTPS
-![localhost](localhost.png)
+![localhost](screenshots/localhost.png)
 8. Click **Advanced**
-![Chrome](chrome1.png)
+![Chrome](screenshots/chrome1.png)
 9. Click **Proceed to localhost (unsafe)**
-![Chrome](chrome2.png)
+![Chrome](screenshots/chrome2.png)
