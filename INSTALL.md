@@ -33,15 +33,14 @@
 1. Download the archive: https://github.com/disha-cha/CAILA/releases/download/MacOS-Arm64-v1.0.0/MacOS-Arm64-v1.0.0.zip
 2. Extract the files
 3. Run the program by clicking **cail-backend-macos-arm64.exe**
-4. If you see "Windows Protected Your PC" click **"More Info"**
-5. Open Chrome and go to  https://localhost:3000 YOU MUST BE USING HTTPS
+4. Open Chrome and go to  https://localhost:3000 YOU MUST BE USING HTTPS
 
 ![localhost](screenshots/localhost.png)
 
-6. Click **Advanced**
+5. Click **Advanced**
 
 ![Chrome](screenshots/chrome1.png)
 
-7. Click **Proceed to localhost (unsafe)**
+6. Click **Proceed to localhost (unsafe)**
 
 ![Chrome](screenshots/chrome2.png)
