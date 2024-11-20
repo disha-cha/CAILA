@@ -127,9 +127,9 @@ ${csvHeader}
 
         // Call the OpenAI API with adjusted parameters
         const response = await openai.chat.completions.create({
-            model: 'gpt-3.5-turbo',
+            model: 'gpt-4o-mini',
             messages: [{ role: 'user', content: prompt }],
-            max_tokens: 3000, // Increase if necessary
+            max_completion_tokens: 4000, // Increase if necessary
             temperature: 0.3, // Lower value for more consistent output
         });
 
