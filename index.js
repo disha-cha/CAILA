@@ -8,7 +8,12 @@ const path = require('path');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-app.use(express.static(path.join(__dirname,'public')));
+var opsys = process.platform;
+if (opsys == "darwin") {
+    app.use(express.static('/Applications/CAILA/public'));
+} else {
+    app.use(express.static(path.join(__dirname,'public')));
+}
 
 app.post('/analyze', upload.single('data_file'), async (req, res) => {
     try {
