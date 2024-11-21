@@ -3,11 +3,12 @@ const multer = require('multer');
 const fs = require('fs');
 const OpenAI = require('openai');
 const https = require('https');
+const path = require('path');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname,'public')));
 
 app.post('/analyze', upload.single('data_file'), async (req, res) => {
     try {
