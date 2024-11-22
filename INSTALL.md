@@ -1,4 +1,13 @@
-# Install on Windows
+# Installation Instructions
+
+For Windows Instructions:
+https://github.com/disha-cha/CAILA/blob/main/INSTALL.md#install-on-windows
+
+For MacOS Instructions:
+https://github.com/disha-cha/CAILA/blob/main/INSTALL.md#install-on-macos
+
+
+## Install on Windows
 
 1. Download the archive: https://github.com/disha-cha/CAILA/releases/download/Win-v1.0.0/v1.0.0-Windows.zip
 2. Extract the files
@@ -28,7 +37,7 @@
 ![Chrome](screenshots/chrome2.png)
 
 
-# Install on MacOS
+## Install on MacOS
 
 1. Download the archive: https://github.com/disha-cha/CAILA/releases/download/MacOS-x64-v1.0.0/v1.0.0-MacOS.pkg
 2. Extract the files
