@@ -26,8 +26,6 @@ https://github.com/disha-cha/CAILA/blob/main/INSTALL.md#install-on-macos
 
 7. Open Chrome and go to  https://localhost:3000 YOU MUST BE USING HTTPS
 
-![localhost](screenshots/localhost.png)
-
 8. Click **Advanced**
 
 ![Chrome](screenshots/chrome1.png)
