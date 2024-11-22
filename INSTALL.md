@@ -28,9 +28,9 @@
 ![Chrome](screenshots/chrome2.png)
 
 
-# Install on OSX-Arm64
+# Install on MacOS
 
-1. Download the archive: https://github.com/disha-cha/CAILA/releases/download/MacOS-Arm64-v1.0.0/MacOS-Arm64-v1.0.0.zip
+1. Download the archive: https://github.com/disha-cha/CAILA/releases/download/MacOS-x64-v1.0.0/v1.0.0-MacOS.pkg
 2. Extract the files
 3. Run the program by clicking **cail-backend-macos-arm64.exe**
 4. Open Chrome and go to  https://localhost:3000 YOU MUST BE USING HTTPS
