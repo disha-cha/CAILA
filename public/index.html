@@ -44,7 +44,7 @@
             font-weight: bold;
             color: black;
         }
-        textarea, input[type="text"], input[type="password"] {
+        textarea, input[type="text"], input[type="password"], select {
             width: 100%;
             padding: 12px;
             margin-top: 8px;
@@ -56,7 +56,7 @@
             background-color: white;
             color: black;
         }
-        textarea:focus, input[type="text"]:focus, input[type="password"]:focus {
+        textarea:focus, input[type="text"]:focus, input[type="password"]:focus, select:focus {
             outline: none;
             border-color: #8181aa;
         }
@@ -237,6 +237,13 @@
         .checkbox-group input[type="checkbox"] {
             margin-right: 10px;
         }
+        /* Info icon for research question */
+        .info-icon {
+            font-size: 16px;
+            color: #3498db;
+            cursor: pointer;
+            margin-left: 5px;
+        }
         /* Responsive Design */
         @media (max-width: 600px) {
             .container {
@@ -264,6 +271,17 @@
             <label for="api-key">OpenAI API Key:</label>
             <input type="password" id="api-key" placeholder="Enter your OpenAI API key" required>
 
+            <!-- GPT Model Selection Dropdown -->
+            <label for="model-select">Choose GPT Model:</label>
+            <select id="model-select" required>
+                <option value="4-latest" selected>GPT-4 Latest (Default): Latest enhancements, best performance</option>
+                <option value="4">GPT-4 (Standard): Balanced performance and cost</option>
+                <option value="4o">GPT-4o (Optimized): Cost-efficient option with slightly less detail</option>
+                <option value="4omini">GPT-4mini (Lightweight): Faster, less detailed responses</option>
+                <option value="o3">GPT-o3 (Older Generation): Lower cost, reduced capabilities</option>
+                <option value="o1 mini">GPT-o1 mini (Minimal): Very low cost, limited output quality</option>
+            </select>
+
             <!-- File Upload -->
             <div class="file-upload">
                 <button type="button" id="upload-btn">Upload Data File</button>
@@ -272,16 +290,20 @@
             </div>
             <p class="file-format-note">Preferred file format: <strong>CSV</strong></p>
 
-            <label for="research-question">Research Question:</label>
-            <input type="text" id="research-question" placeholder="Enter your research question here" required>
+            <!-- Research Question with example and info icon -->
+            <label for="research-question">
+                Research Question:
+                <span class="info-icon" title="Examples: 'What are common challenges in student group discussions?', 'How do students perceive and address conflicts within group work?', 'What leadership roles or styles commonly emerge in student group projects?'">&#9432;</span>
+            </label>
+            <input type="text" id="research-question" placeholder="E.g., What are common challenges in student group discussions?" required>
             
             <div class="preset-info">
                 <h2>Preset Information</h2>
                 <label for="preprompt">Input Expectations:</label>
-                <textarea id="preprompt" readonly>I'm going to give you a set of data from student group discussions</textarea>
+                <textarea id="preprompt">I'm going to give you a set of data from student group discussions</textarea>
                 
                 <label for="query">Output Expectations:</label>
-                <textarea id="query" readonly>I want you to generate themes that would answer the questions I pose. Provide the output in CSV format with the following columns: Theme, Description, Explanation. Do not include any additional text or explanations.</textarea>
+                <textarea id="query">I want you to generate themes that would answer the questions I pose. Provide the output in CSV format with the following columns: Theme, Description, Explanation. Do not include any additional text or explanations.</textarea>
 
                 <label>Select Additional Output Columns:</label>
                 <div id="additional-columns" class="checkbox-group">
@@ -578,6 +600,7 @@
 
             // Collect form data
             var apiKey = document.getElementById('api-key').value;
+            var model = document.getElementById('model-select').value;
             var researchQuestion = document.getElementById('research-question').value;
             var preprompt = document.getElementById('preprompt').value;
             var query = document.getElementById('query').value;
@@ -597,6 +620,7 @@
 
             var formData = new FormData();
             formData.append('api_key', apiKey);
+            formData.append('model', model);
             formData.append('research_question', researchQuestion);
             formData.append('preprompt', preprompt);
             formData.append('query', query);
