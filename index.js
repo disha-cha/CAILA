@@ -11,7 +11,8 @@ app.use(express.static('public'));
 app.post('/analyze', upload.single('data_file'), async (req, res) => {
     try {
         const apiKey = req.body.api_key;
-        const selectedModel = req.body.model || '4-latest';
+        // Set the default model to 'chatgpt-4o-latest' if none is provided
+        const selectedModel = req.body.model || 'chatgpt-4o-latest';
         const researchQuestion = req.body.research_question;
         const preprompt = req.body.preprompt;
         const query = req.body.query;
@@ -26,16 +27,17 @@ app.post('/analyze', upload.single('data_file'), async (req, res) => {
 
         const dataContent = fs.readFileSync(dataFilePath, 'utf8');
 
-        // Map selected model to actual OpenAI model name
+        // Updated mapping: keys match the dropdown values and point to the appropriate backend model version.
         const modelMapping = {
-            '4-latest': 'gpt-4',
-            '4': 'gpt-4',
-            '4o': 'gpt-4-0613',
-            '4omini': 'gpt-4-0314',
-            'o3': 'gpt-3.5-turbo',
-            'o1 mini': 'gpt-3.5-turbo-16k'
+            'chatgpt-4o-latest': 'chatgpt-4o-latest',
+            'gpt-4o': 'gpt-4o-2024-08-06',
+            'gpt-4o-mini': 'gpt-4o-mini-2024-07-18',
+            'o1': 'o1-2024-12-17',
+            'o1-mini': 'o1-mini-2024-09-12',
+            'o3-mini': 'o3-mini-2025-01-31',
+            'o1-preview': 'o1-preview-2024-09-12'
         };
-        const openaiModel = modelMapping[selectedModel] || 'gpt-4';
+        const openaiModel = modelMapping[selectedModel] || 'chatgpt-4o-latest';
 
         // Build the columns list for the AI prompt
         let columnsList = ['Theme', 'Description', 'Explanation'];
