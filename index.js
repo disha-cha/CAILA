@@ -1,23 +1,17 @@
-const express = require('express')
+const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const OpenAI = require('openai');
-const https = require('https');
-const path = require('path');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-var opsys = process.platform;
-if (opsys == "darwin") {
-    app.use(express.static('/Applications/CAILA/public'));
-} else {
-    app.use(express.static(path.join(__dirname,'public')));
-}
+app.use(express.static('public'));
 
 app.post('/analyze', upload.single('data_file'), async (req, res) => {
     try {
         const apiKey = req.body.api_key;
+        const selectedModel = req.body.model || '4-latest';
         const researchQuestion = req.body.research_question;
         const preprompt = req.body.preprompt;
         const query = req.body.query;
@@ -31,6 +25,17 @@ app.post('/analyze', upload.single('data_file'), async (req, res) => {
         }
 
         const dataContent = fs.readFileSync(dataFilePath, 'utf8');
+
+        // Map selected model to actual OpenAI model name
+        const modelMapping = {
+            '4-latest': 'gpt-4',
+            '4': 'gpt-4',
+            '4o': 'gpt-4-0613',
+            '4omini': 'gpt-4-0314',
+            'o3': 'gpt-3.5-turbo',
+            'o1 mini': 'gpt-3.5-turbo-16k'
+        };
+        const openaiModel = modelMapping[selectedModel] || 'gpt-4';
 
         // Build the columns list for the AI prompt
         let columnsList = ['Theme', 'Description', 'Explanation'];
@@ -133,9 +138,9 @@ ${csvHeader}
 
         // Call the OpenAI API with adjusted parameters
         const response = await openai.chat.completions.create({
-            model: 'gpt-4o-mini',
+            model: openaiModel,
             messages: [{ role: 'user', content: prompt }],
-            max_completion_tokens: 4000, // Increase if necessary
+            max_tokens: 3000, // Increase if necessary
             temperature: 0.3, // Lower value for more consistent output
         });
 
@@ -156,12 +161,6 @@ ${csvHeader}
 });
 
 const PORT = process.env.PORT || 3000;
-
-const certs = {
-    key: fs.readFileSync(__dirname + '/cert/key.pem', 'utf8'),
-    cert: fs.readFileSync(__dirname + '/cert/cert.pem', 'utf8')
-}
-
-var server = https.createServer(certs, app).listen(PORT, () => {
+app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
