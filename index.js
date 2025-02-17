@@ -35,7 +35,7 @@ app.post('/analyze', upload.single('data_file'), async (req, res) => {
             'o1': 'o1-2024-12-17',
             'o1-mini': 'o1-mini-2024-09-12',
             'o3-mini': 'o3-mini-2025-01-31',
-            'o1-preview': 'o1-preview-2024-09-12'
+            'claude': 'claude-v1'
         };
         const openaiModel = modelMapping[selectedModel] || 'chatgpt-4o-latest';
 
@@ -153,12 +153,19 @@ ${csvHeader}
         fs.unlinkSync(dataFilePath);
     } catch (error) {
         console.error(error);
-
-        if (error.status && error.statusText) {
-            res.status(error.status).send(error.statusText);
-        } else {
-            res.status(500).send('An error occurred while processing your request.');
+        // Enhanced error handling:
+        let errorMessage = 'An error occurred while processing your request.';
+        if (error.error && error.error.message) {
+            const errMsg = error.error.message;
+            if (errMsg.includes("'max_tokens' is not supported")) {
+                errorMessage = "Error: The selected model requires a different API key token limit. Please use an API key that supports the chosen model (for example, if you're using an OpenAI key, select a compatible model).";
+            } else if (req.body.model === 'claude') {
+                errorMessage = "Error: It appears you're attempting to use Claude, but your API key may be for OpenAI. Please ensure you're using the correct API key for Claude.";
+            } else {
+                errorMessage = errMsg;
+            }
         }
+        res.status(400).send(errorMessage);
     }
 });
 
