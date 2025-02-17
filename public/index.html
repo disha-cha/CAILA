@@ -272,7 +272,7 @@
             <input type="password" id="api-key" placeholder="Enter your OpenAI API key" required>
 
             <!-- GPT Model Selection Dropdown -->
-            <label for="model-select">Choose GPT Model:</label>
+            <label for="model-select">Choose GPT Model / AI:</label>
             <select id="model-select" required>
                 <option value="chatgpt-4o-latest" selected>
                     ChatGPT-4o Latest: Latest model used in ChatGPT with real-time updates
@@ -292,7 +292,9 @@
                 <option value="o3-mini">
                     O3 Mini: New model with specialized optimizations
                 </option>
-                
+                <option value="claude">
+                    Claude: Use Anthropic's Claude AI (ensure you have a Claude key)
+                </option>
             </select>
 
             <!-- File Upload -->
@@ -391,6 +393,11 @@
                 console.error('Error parsing CSV:', error);
                 return null;
             }
+        }
+
+        // Helper function to remove markdown code block markers if present
+        function cleanCSVData(data) {
+            return data.replace(/^\s*```csv\s*/i, '').replace(/\s*```\s*$/, '');
         }
 
         function generateTable(headers, rows) {
@@ -647,11 +654,13 @@
             })
             .then(function(response) {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok.');
+                    throw new Error(response.statusText);
                 }
                 return response.text();
             })
             .then(function(data) {
+                // Remove markdown formatting if present
+                data = cleanCSVData(data);
                 var result = parseCSV(data);
 
                 if (result) {
@@ -698,7 +707,16 @@
             })
             .catch(function(error) {
                 console.error('Error:', error);
-                resultContent.innerHTML = 'An error occurred while processing your request.';
+                var errMsg = error.message || 'An error occurred while processing your request.';
+                if (errMsg.toLowerCase().includes("bad request")) {
+                    resultContent.innerHTML = `<p>${errMsg}</p>
+                      <button id="help-btn" class="download-button">Need Help?</button>`;
+                    document.getElementById("help-btn").addEventListener("click", function(){
+                        alert("Please check that your API key is capable of using the selected model. For example, if you are using an OpenAI API key, select an OpenAI-compatible model. If you're trying to use Claude, please ensure you are using a valid Claude API key.");
+                    });
+                } else {
+                    resultContent.innerHTML = errMsg;
+                }
             });
         }
     </script>
