@@ -2,6 +2,9 @@ const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
 const OpenAI = require('openai');
+const https = require('https');
+const path = require('path');
+
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -170,6 +173,11 @@ ${csvHeader}
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const certs = {
+    key: fs.readFileSync(__dirname + '/cert/key.pem', 'utf8'),
+    cert: fs.readFileSync(__dirname + '/cert/cert.pem', 'utf8')
+}
+
+var server = https.createServer(certs, app).listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
