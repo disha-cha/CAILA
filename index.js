@@ -1,3 +1,4 @@
+// index.js
 const express = require('express');
 const multer = require('multer');
 const fs = require('fs');
@@ -8,55 +9,60 @@ const path = require('path');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-// Serve static files from the "public" folder using an absolute path
+// Serve static files from public/
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Explicitly serve index.html at the root URL
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.post('/analyze', upload.single('data_file'), async (req, res) => {
   try {
-    const apiKey = req.body.api_key;
-    // Set the default model to 'chatgpt-4o-latest' if none is provided
-    const selectedModel = req.body.model || 'chatgpt-4o-latest';
+    // 1) Pull in all form fields
+    const apiKey           = req.body.api_key;
+    const selectedModel    = req.body.model || 'chatgpt-4o-latest';
     const researchQuestion = req.body.research_question;
-    const preprompt = req.body.preprompt;
-    const query = req.body.query;
-    const additionalColumns = req.body.additional_columns;
-    const existingThemes = req.body.existing_themes || '';
-    const dataFilePath = req.file.path;
+    const preprompt        = req.body.preprompt;
+    const query            = req.body.query;
+    const additionalCols   = req.body.additional_columns || '';
+    const existingThemes   = req.body.existing_themes || '';
+    const frameworkOverride= req.body.framework_override || '';
+    const dataFilePath     = req.file.path;
 
     if (!apiKey) {
-      res.status(400).send('API key is required.');
-      return;
+      return res.status(400).send('API key is required.');
     }
 
+    // 2) Read uploaded data
     const dataContent = fs.readFileSync(dataFilePath, 'utf8');
 
-    // Updated mapping: keys match the dropdown values and point to the appropriate backend model version.
+    // 3) Model mapping (added ‘gemini’)
     const modelMapping = {
       'chatgpt-4o-latest': 'chatgpt-4o-latest',
-      'gpt-4o': 'gpt-4o-2024-08-06',
-      'gpt-4o-mini': 'gpt-4o-mini-2024-07-18',
-      'o1': 'o1-2024-12-17',
-      'o1-mini': 'o1-mini-2024-09-12',
-      'o3-mini': 'o3-mini-2025-01-31',
-      'claude': 'claude-v1'
+      'gpt-4o':            'gpt-4o-2024-08-06',
+      'gpt-4o-mini':       'gpt-4o-mini-2024-07-18',
+      'o1':                'o1-2024-12-17',
+      'o1-mini':           'o1-mini-2024-09-12',
+      'o3-mini':           'o3-mini-2025-01-31',
+      'claude':            'claude-v1',
+      'gemini':            'gemini-pro'
     };
     const openaiModel = modelMapping[selectedModel] || 'chatgpt-4o-latest';
 
-    // Build the columns list for the AI prompt
+    // 4) Build your CSV columns list
     let columnsList = ['Theme', 'Description', 'Explanation'];
-    if (additionalColumns && additionalColumns.trim() !== '') {
-      columnsList = columnsList.concat(additionalColumns.split(',').map(col => col.trim()));
+    if (additionalCols.trim()) {
+      columnsList = columnsList.concat(
+        additionalCols.split(',').map(c => c.trim())
+      );
     }
+    const csvHeader = columnsList.join(',');
 
-    // Construct descriptions for additional columns with hardcoded prompts
+    // 5) Build descriptions for any extra columns
     let additionalColumnsDescription = '';
-    const additionalColumnsArray = additionalColumns ? additionalColumns.split(',').map(col => col.trim()) : [];
-
+    const additionalColumnsArray = additionalCols
+      ? additionalCols.split(',').map(c => c.trim())
+      : [];
     additionalColumnsArray.forEach(col => {
       switch (col) {
         case 'Relevant Quotes':
@@ -64,6 +70,9 @@ app.post('/analyze', upload.single('data_file'), async (req, res) => {
           break;
         case 'Speaker Names':
           additionalColumnsDescription += `- **${col}**: List the names or identifiers of students who contributed to the theme.\n`;
+          break;
+        case 'Keywords':
+          additionalColumnsDescription += `- **${col}**: List key terms or phrases associated with the theme.\n`;
           break;
         case 'Frequency':
           additionalColumnsDescription += `- **${col}**: Indicate how many times the theme appeared in the discussions.\n`;
@@ -83,9 +92,6 @@ app.post('/analyze', upload.single('data_file'), async (req, res) => {
         case 'Agreement Level':
           additionalColumnsDescription += `- **${col}**: Indicate whether students agreed or disagreed on the theme.\n`;
           break;
-        case 'Keywords':
-          additionalColumnsDescription += `- **${col}**: List key terms or phrases associated with the theme.\n`;
-          break;
         case 'Educational Concepts':
           additionalColumnsDescription += `- **${col}**: Mention any educational theories or concepts related to the theme.\n`;
           break;
@@ -95,10 +101,7 @@ app.post('/analyze', upload.single('data_file'), async (req, res) => {
       }
     });
 
-    // Create a CSV header line
-    const csvHeader = columnsList.join(',');
-
-    // Modify the query to include detailed instructions and an example
+    // 6) Your full instructions block, unchanged
     const modifiedQuery = `
 I want you to generate as many new themes as possible that answer the research question. Do not include the following themes: ${existingThemes}.
 
@@ -117,7 +120,7 @@ Please ensure:
 - **Use commas to separate fields.**
 - **Do not include any additional commas or line breaks within a field.**
 - **Do not include any extra text or explanations outside the CSV format.**
-- **For the 'Relevant Quotes' column, ensure that the quote itself is enclosed in double quotation marks ("") within the single-quoted field.**
+- **For the 'Relevant Quotes' column, ensure that the quote itself is enclosed in double quotation marks (") within the single-quoted field.**
 
 Output the data in CSV format, with the following header line:
 
@@ -139,34 +142,55 @@ ${csvHeader}
 - **Do not include any line breaks within a field.**
 `;
 
-    // Construct the prompt
-    const prompt = `${preprompt}\n\nResearch Question: ${researchQuestion}\n\nData:\n${dataContent}\n\n${modifiedQuery}`;
+    // 7) Read the framework JSON (or use the override)
+    let frameworkText;
+    if (frameworkOverride && frameworkOverride.length) {
+      frameworkText = frameworkOverride;
+    } else {
+      frameworkText = fs.readFileSync(
+        path.join(__dirname, 'public', 'framework.json'),
+        'utf8'
+      );
+    }
 
-    const openai = new OpenAI({
-      apiKey: apiKey,
-    });
+    // 8) Stitch together the final prompt
+    const prompt = `
+${preprompt}
 
-    // Call the OpenAI API with adjusted parameters
+Deductive Coding Framework:
+${frameworkText}
+
+Research Question: ${researchQuestion}
+
+Data:
+${dataContent}
+
+${modifiedQuery}
+    `.trim();
+
+    // 9) Call the API
+    const openai = new OpenAI({ apiKey });
     const response = await openai.chat.completions.create({
       model: openaiModel,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 3000, // Increase if necessary
-      temperature: 0.3, // Lower value for more consistent output
+      max_tokens: 3000,
+      temperature: 0.3,
     });
 
     const analysisResult = response.choices[0].message.content.trim();
-
     res.send(analysisResult);
 
+    // 10) Cleanup
     fs.unlinkSync(dataFilePath);
+
   } catch (error) {
     console.error(error);
-    // Enhanced error handling:
+    // Enhanced error handling
     let errorMessage = 'An error occurred while processing your request.';
     if (error.error && error.error.message) {
       const errMsg = error.error.message;
       if (errMsg.includes("'max_tokens' is not supported")) {
-        errorMessage = "Error: The selected model requires a different API key token limit. Please use an API key that supports the chosen model (for example, if you're using an OpenAI key, select a compatible model).";
+        errorMessage = "Error: The selected model requires a different API key token limit. Please use an API key that supports the chosen model.";
       } else if (req.body.model === 'claude') {
         errorMessage = "Error: It appears you're attempting to use Claude, but your API key may be for OpenAI. Please ensure you're using the correct API key for Claude.";
       } else {
@@ -177,13 +201,12 @@ ${csvHeader}
   }
 });
 
-// Start the HTTPS server
+// 11) HTTPS server startup (unchanged)
 const PORT = process.env.PORT || 3000;
 const certs = {
   key: fs.readFileSync(path.join(__dirname, 'cert', 'key.pem'), 'utf8'),
   cert: fs.readFileSync(path.join(__dirname, 'cert', 'cert.pem'), 'utf8')
 };
-
 https.createServer(certs, app).listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
