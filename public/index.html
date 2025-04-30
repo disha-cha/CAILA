@@ -1,3 +1,4 @@
+<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -295,6 +296,9 @@
                 <option value="claude">
                     Claude: Use Anthropic's Claude AI (ensure you have a Claude key)
                 </option>
+                <option value="gemini">
+                    Gemini: Google’s Gemini model
+                </option>
             </select>
 
             <!-- File Upload -->
@@ -327,7 +331,17 @@
                     <label><input type="checkbox" name="additional-columns" value="Keywords"> Keywords</label>
                 </div>
             </div>
-            
+
+            <!-- NEW: Coding Framework override -->
+            <label for="framework-input">
+              Coding Framework (JSON): 
+              <span class="info-icon"
+                    title="Deductive example: { 'Agreement': ['brandon likes coding'] }&#10;Inductive example: { 'Connecting math to education': ['we did this in class'] }">
+                &#9432;
+              </span>
+            </label>
+            <textarea id="framework-input" placeholder="Paste your JSON here to override default…"></textarea>
+
             <button type="submit">CAILyze!</button>
         </form>
 
@@ -624,6 +638,7 @@
             var researchQuestion = document.getElementById('research-question').value;
             var preprompt = document.getElementById('preprompt').value;
             var query = document.getElementById('query').value;
+            var frameworkOverride = document.getElementById('framework-input').value.trim();
 
             // Collect selected additional columns from the checkboxes
             var additionalColumnsCheckboxes = document.querySelectorAll('input[name="additional-columns"]:checked');
@@ -644,6 +659,7 @@
             formData.append('research_question', researchQuestion);
             formData.append('preprompt', preprompt);
             formData.append('query', query);
+            formData.append('framework_override', frameworkOverride);
             formData.append('additional_columns', additionalColumns);
             formData.append('data_file', dataFile);
             formData.append('existing_themes', existingRows.map(row => row['Theme']).join(','));
