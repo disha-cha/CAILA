@@ -1,0 +1,72 @@
+{
+  "deductive": {
+    "Management Routines": {
+      "description": "Pre-established codes for organizational and regulatory behaviors, including setting agendas, clarifying tasks, and maintaining group order.",
+      "examples": [
+        "Organizes the next step in problem solving",
+        "Clarifies roles among peers"
+      ]
+    },
+    "Cognitive Engagement": {
+      "description": "Levels of cognitive processing drawn from the ICAP framework, from passive listening to interactive elaboration.",
+      "examples": [
+        "Students actively reason through a concept",
+        "Students passively listen without contributing"
+      ]
+    },
+    "Social Interaction": {
+      "description": "Structured discourse moves covering reasoning, elaboration, listening skills, and accountability within group dialogue.",
+      "examples": [
+        "Expands on peer’s idea to deepen reasoning",
+        "Encourages a peer to justify their claim"
+      ]
+    },
+    "Emotional Support": {
+      "description": "Expressions of encouragement, empathy, and affect that sustain motivation and classroom climate.",
+      "examples": [
+        "Offers praise for a correct solution",
+        "Expresses constructive frustration"
+      ]
+    },
+    "Self-Regulation": {
+      "description": "Student-driven monitoring and adjustment of learning strategies, including planning, reflection, and goal-setting.",
+      "examples": [
+        "Reflects on which strategy worked",
+        "Sets a goal for the next task"
+      ]
+    }
+  },
+  "inductive": {
+    "Argumentation": {
+      "description": "Emergent coding of constructing and defending arguments, including claims supported by reasoning or evidence.",
+      "examples": [
+        "I believe we apply the Pythagorean theorem because…"
+      ]
+    },
+    "Specificity": {
+      "description": "Depth of detail in descriptions or explanations, capturing precise references to concepts or steps.",
+      "examples": [
+        "First multiply both sides by 2 to isolate the variable…"
+      ]
+    },
+    "Knowledge Domain": {
+      "description": "Stance toward subject-matter expertise, such as referencing disciplinary conventions or technical terminology.",
+      "examples": [
+        "In topology, a homeomorphism requires continuity and bijection…"
+      ]
+    },
+    "Descriptive": {
+      "description": "First-cycle topic labeling that summarizes the basic topic of segments using nouns or noun phrases.",
+      "examples": [
+        "Group management",
+        "Equation solving"
+      ]
+    },
+    "Connecting Math to Education": {
+      "description": "Links between mathematical procedures and pedagogical or classroom context that emerge spontaneously from the data.",
+      "examples": [
+        "We did this example in class yesterday"
+      ]
+    }
+  }
+}
