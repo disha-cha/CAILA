@@ -1,212 +1,367 @@
-// index.js
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs');
-const OpenAI = require('openai');
-const https = require('https');
+const fs = require('fs').promises;
 const path = require('path');
+const https = require('https');
+
+const OpenAI = require('openai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
-
-// Serve static files from public/
-app.use(express.static(path.join(__dirname, 'public')));
-
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+const upload = multer({ 
+    dest: 'uploads/',
+    limits: {
+        fileSize: 10 * 1024 * 1024, // 10MB limit
+        files: 10 // Max 10 files
+    }
 });
 
-app.post('/analyze', upload.single('data_file'), async (req, res) => {
-  try {
-    // 1) Pull in all form fields
-    const apiKey           = req.body.api_key;
-    const selectedModel    = req.body.model || 'chatgpt-4o-latest';
-    const researchQuestion = req.body.research_question;
-    const preprompt        = req.body.preprompt;
-    const query            = req.body.query;
-    const additionalCols   = req.body.additional_columns || '';
-    const existingThemes   = req.body.existing_themes || '';
-    const frameworkOverride= req.body.framework_override || '';
-    const dataFilePath     = req.file.path;
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 
-    if (!apiKey) {
-      return res.status(400).send('API key is required.');
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    res.status(500).send('Something went wrong!');
+});
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.post('/analyze', upload.array('data_files', 10), async (req, res) => {
+    let uploadedFilePaths = [];
+    
+    try {
+        const validationError = validateRequest(req);
+        if (validationError) {
+            return res.status(400).send(validationError);
+        }
+
+        const {
+            apiKey,
+            selectedModel,
+            researchQuestion,
+            preprompt,
+            query,
+            additionalColumns,
+            existingThemes,
+            deductiveFramework
+        } = extractRequestData(req);
+
+        uploadedFilePaths = req.files.map(file => file.path);
+
+        const dataContent = await readAndCombineFiles(req.files);
+
+        const prompt = buildPrompt({
+            preprompt,
+            researchQuestion,
+            dataContent,
+            query,
+            additionalColumns,
+            existingThemes,
+            deductiveFramework
+        });
+
+        // Get AI response based on selected model
+        const analysisResult = await getAIResponse(selectedModel, apiKey, prompt);
+
+        res.send(analysisResult);
+
+    } catch (error) {
+        console.error('Analysis error:', error);
+        
+        // error message
+        let errorMessage = 'An error occurred while processing your request.';
+        
+        if (error.message) {
+            if (error.message.includes('API key')) {
+                errorMessage = 'Invalid API key. Please check your API key and ensure it matches the selected model.';
+            } else if (error.message.includes('quota')) {
+                errorMessage = 'API quota exceeded. Please check your API usage limits.';
+            } else if (error.message.includes('model')) {
+                errorMessage = 'Model error: ' + error.message;
+            } else {
+                errorMessage = error.message;
+            }
+        }
+        
+        res.status(400).send(errorMessage);
+        
+    } finally {
+        for (const filePath of uploadedFilePaths) {
+            try {
+                await fs.unlink(filePath);
+            } catch (err) {
+                console.error('Error deleting file:', err);
+            }
+        }
     }
+});
 
-    // 2) Read uploaded data
-    const dataContent = fs.readFileSync(dataFilePath, 'utf8');
+function validateRequest(req) {
+    if (!req.body.api_key) {
+        return 'API key is required.';
+    }
+    
+    if (!req.body.model) {
+        return 'Model selection is required.';
+    }
+    
+    if (!req.body.research_question) {
+        return 'Research question is required.';
+    }
+    
+    if (!req.files || req.files.length === 0) {
+        return 'At least one data file is required.';
+    }
+    
+    const allowedExtensions = ['.csv', '.txt', '.json'];
+    for (const file of req.files) {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (!allowedExtensions.includes(ext)) {
+            return `Invalid file type: ${file.originalname}. Allowed types: CSV, TXT, JSON`;
+        }
+    }
+    
+    return null;
+}
 
-    // 3) Model mapping (added ‘gemini’)
-    const modelMapping = {
-      'chatgpt-4o-latest': 'chatgpt-4o-latest',
-      'gpt-4o':            'gpt-4o-2024-08-06',
-      'gpt-4o-mini':       'gpt-4o-mini-2024-07-18',
-      'o1':                'o1-2024-12-17',
-      'o1-mini':           'o1-mini-2024-09-12',
-      'o3-mini':           'o3-mini-2025-01-31',
-      'claude':            'claude-v1',
-      'gemini':            'gemini-pro'
+function extractRequestData(req) {
+    return {
+        apiKey: req.body.api_key,
+        selectedModel: req.body.model || 'chatgpt-4o-latest',
+        researchQuestion: req.body.research_question,
+        preprompt: req.body.preprompt || '',
+        query: req.body.query || '',
+        additionalColumns: req.body.additional_columns || '',
+        existingThemes: req.body.existing_themes || '',
+        deductiveFramework: req.body.deductive_framework || ''
     };
-    const openaiModel = modelMapping[selectedModel] || 'chatgpt-4o-latest';
+}
 
-    // 4) Build your CSV columns list
-    let columnsList = ['Theme', 'Description', 'Explanation'];
-    if (additionalCols.trim()) {
-      columnsList = columnsList.concat(
-        additionalCols.split(',').map(c => c.trim())
-      );
+// Read and combine multiple files
+async function readAndCombineFiles(files) {
+    const contents = [];
+    
+    for (const file of files) {
+        const content = await fs.readFile(file.path, 'utf8');
+        contents.push(`\n--- File: ${file.originalname} ---\n${content}`);
     }
-    const csvHeader = columnsList.join(',');
+    
+    return contents.join('\n\n');
+}
 
-    // 5) Build descriptions for any extra columns
+function buildPrompt(params) {
+    const {
+        preprompt,
+        researchQuestion,
+        dataContent,
+        query,
+        additionalColumns,
+        existingThemes,
+        deductiveFramework
+    } = params;
+
+    // Build columns list
+    let columnsList = ['Theme', 'Description', 'Explanation'];
+    if (additionalColumns && additionalColumns.trim() !== '') {
+        columnsList = columnsList.concat(additionalColumns.split(',').map(col => col.trim()));
+    }
+
     let additionalColumnsDescription = '';
-    const additionalColumnsArray = additionalCols
-      ? additionalCols.split(',').map(c => c.trim())
-      : [];
+    const additionalColumnsArray = additionalColumns ? additionalColumns.split(',').map(col => col.trim()) : [];
+
     additionalColumnsArray.forEach(col => {
-      switch (col) {
-        case 'Relevant Quotes':
-          additionalColumnsDescription += `- **${col}**: Provide a direct quote from the data that illustrates the theme. The quote should be enclosed in double quotation marks (") and should not include the speaker's name.\n`;
-          break;
-        case 'Speaker Names':
-          additionalColumnsDescription += `- **${col}**: List the names or identifiers of students who contributed to the theme.\n`;
-          break;
-        case 'Keywords':
-          additionalColumnsDescription += `- **${col}**: List key terms or phrases associated with the theme.\n`;
-          break;
-        case 'Frequency':
-          additionalColumnsDescription += `- **${col}**: Indicate how many times the theme appeared in the discussions.\n`;
-          break;
-        case 'Emotions Expressed':
-          additionalColumnsDescription += `- **${col}**: Describe any emotions expressed by students related to the theme.\n`;
-          break;
-        case 'Challenges Discussed':
-          additionalColumnsDescription += `- **${col}**: Mention any challenges the students discussed in relation to the theme.\n`;
-          break;
-        case 'Suggestions or Solutions':
-          additionalColumnsDescription += `- **${col}**: Note any suggestions or solutions proposed by the students.\n`;
-          break;
-        case 'Questions Raised':
-          additionalColumnsDescription += `- **${col}**: Include any questions the students asked that relate to the theme.\n`;
-          break;
-        case 'Agreement Level':
-          additionalColumnsDescription += `- **${col}**: Indicate whether students agreed or disagreed on the theme.\n`;
-          break;
-        case 'Educational Concepts':
-          additionalColumnsDescription += `- **${col}**: Mention any educational theories or concepts related to the theme.\n`;
-          break;
-        default:
-          additionalColumnsDescription += `- **${col}**: Provide details for ${col}.\n`;
-          break;
-      }
+        switch (col) {
+            case 'Relevant Quotes':
+                additionalColumnsDescription += `- **${col}**: Provide a direct quote from the data that illustrates the theme. The quote should be enclosed in double quotation marks (") and should not include the speaker's name.\n`;
+                break;
+            case 'Speaker Names':
+                additionalColumnsDescription += `- **${col}**: List the names or identifiers of students who contributed to the theme.\n`;
+                break;
+            case 'Keywords':
+                additionalColumnsDescription += `- **${col}**: List key terms or phrases associated with the theme.\n`;
+                break;
+            default:
+                additionalColumnsDescription += `- **${col}**: Provide details for ${col}.\n`;
+                break;
+        }
     });
 
-    // 6) Your full instructions block, unchanged
+    const csvHeader = columnsList.join(',');
+
+    // Build the prompt with clear instructions to analyze the provided data
+    let prompt = `IMPORTANT: You must analyze ONLY the conversation data provided below. Do NOT generate generic themes about the topic. Instead, identify themes that emerge from the actual conversations in the data files.\n\n`;
+    
+    prompt += `${preprompt}\n\nResearch Question: ${researchQuestion}\n\n`;
+    
+    // Add deductive framework if provided
+    if (deductiveFramework) {
+        prompt += `Deductive Framework to Consider:\n${deductiveFramework}\n\n`;
+        prompt += `Use this framework to help identify and categorize themes in the conversation data.\n\n`;
+    }
+    
+    prompt += `CONVERSATION DATA TO ANALYZE:\n${dataContent}\n\n`;
+    prompt += `END OF CONVERSATION DATA\n\n`;
+
     const modifiedQuery = `
-I want you to generate as many new themes as possible that answer the research question. Do not include the following themes: ${existingThemes}.
+CRITICAL INSTRUCTIONS: 
+1. Analyze ONLY the conversation data provided above between "CONVERSATION DATA TO ANALYZE" and "END OF CONVERSATION DATA"
+2. Do NOT generate generic themes about the topic
+3. Each theme must be based on specific content from the conversations
+4. When providing quotes, use actual quotes from the conversation data
 
-For each theme, provide the following columns:
+${query}
 
-- **Theme**: A concise name for the theme.
-- **Description**: A detailed description of the theme.
-- **Explanation**: Explain how the theme answers the research question.
+Additional Instructions:
+Generate themes that emerge from analyzing the actual conversations in the data. ${existingThemes ? `Do not include the following themes: ${existingThemes}.` : ''}
+
+${deductiveFramework ? 'Use the provided deductive framework to help categorize the themes you identify in the conversation data.' : ''}
+
+For each theme identified in the conversation data, provide the following columns:
+
+- **Theme**: A concise name for the theme found in the conversations
+- **Description**: A detailed description of how this theme appears in the conversation data
+- **Explanation**: Explain how this theme from the conversations answers the research question
 ${additionalColumnsDescription}
-Please ensure:
 
-- Each theme must have data for all columns specified above.
-- If any required data is not available for a theme, then do not include that theme in the output.
-- Use only the data provided.
-- **Enclose every field in single quotes, regardless of content.**
-- **Use commas to separate fields.**
-- **Do not include any additional commas or line breaks within a field.**
-- **Do not include any extra text or explanations outside the CSV format.**
-- **For the 'Relevant Quotes' column, ensure that the quote itself is enclosed in double quotation marks (") within the single-quoted field.**
+Requirements:
+- Each theme must be grounded in the actual conversation data
+- If providing quotes, they must be verbatim from the conversations
+- Do not invent or imagine content not present in the data
+- Focus on patterns, topics, and interactions present in the conversations
 
 Output the data in CSV format, with the following header line:
 
 ${csvHeader}
 
-Each subsequent line should contain the data for one theme.
+Each subsequent line should contain the data for one theme found in the conversations.
 
-**Example Output:**
+**Example Output (based on actual conversation content):**
 
 ${csvHeader}
-'Theme 1','Description of theme 1','Explanation of theme 1','"Relevant Quote 1"','Educational Concept 1'
-'Theme 2','Description of theme 2','Explanation of theme 2','"Relevant Quote 2"','Educational Concept 2'
-'Theme 3','Description of theme 3','Explanation of theme 3','"Relevant Quote 3"','Educational Concept 3'
+'Confusion about axes','Students repeatedly express confusion about which variable goes on which axis','This shows a fundamental challenge students face when creating plots'${additionalColumnsArray.includes('Relevant Quotes') ? ',\'"Wait, does time go on x or y?"\'' : ''}${additionalColumnsArray.includes('Keywords') ? ",'axes, x-axis, y-axis, confusion'" : ''}
 
 **Important Notes:**
-
-- **Enclose all fields in single quotes.**
-- **Do not include any extra text or explanations outside the CSV format.**
-- **Do not include any line breaks within a field.**
+- **Analyze the conversation data, not general knowledge about the topic**
+- **All themes must come from the provided conversations**
+- **Enclose all fields in single quotes**
+- **Do not include any extra text outside the CSV format**
 `;
 
-    // 7) Read the framework JSON (or use the override)
-    let frameworkText;
-    if (frameworkOverride && frameworkOverride.length) {
-      frameworkText = frameworkOverride;
-    } else {
-      frameworkText = fs.readFileSync(
-        path.join(__dirname, 'public', 'framework.json'),
-        'utf8'
-      );
+    return prompt + modifiedQuery;
+}
+
+async function getAIResponse(model, apiKey, prompt) {
+    const modelMapping = {
+        'chatgpt-4o-latest': 'openai',
+        'gpt-4o': 'openai',
+        'gpt-4o-mini': 'openai',
+        'o1': 'openai',
+        'o1-mini': 'openai',
+        'o3-mini': 'openai',
+        'claude': 'claude',
+        'gemini': 'gemini'
+    };
+
+    const provider = modelMapping[model] || 'openai';
+
+    switch (provider) {
+        case 'openai':
+            return await getOpenAIResponse(model, apiKey, prompt);
+        case 'gemini':
+            return await getGeminiResponse(apiKey, prompt);
+        case 'claude':
+            return await getClaudeResponse(apiKey, prompt);
+        default:
+            throw new Error('Unsupported model provider');
     }
+}
 
-    // 8) Stitch together the final prompt
-    const prompt = `
-${preprompt}
-
-Deductive Coding Framework:
-${frameworkText}
-
-Research Question: ${researchQuestion}
-
-Data:
-${dataContent}
-
-${modifiedQuery}
-    `.trim();
-
-    // 9) Call the API
+// OpenAI response handler
+async function getOpenAIResponse(model, apiKey, prompt) {
     const openai = new OpenAI({ apiKey });
-    const response = await openai.chat.completions.create({
-      model: openaiModel,
-      messages: [{ role: 'user', content: prompt }],
-      max_completion_tokens: 3000,
-      temperature: 0.3,
+
+    // Map model names to OpenAI model IDs
+    const openaiModelMapping = {
+        'chatgpt-4o-latest': 'chatgpt-4o-latest',
+        'gpt-4o': 'gpt-4o-2024-08-06',
+        'gpt-4o-mini': 'gpt-4o-mini-2024-07-18',
+        'o1': 'o1-2024-12-17',
+        'o1-mini': 'o1-mini-2024-09-12',
+        'o3-mini': 'o3-mini-2025-01-31'
+    };
+
+    const openaiModel = openaiModelMapping[model] || 'chatgpt-4o-latest';
+
+    try {
+        const response = await openai.chat.completions.create({
+            model: openaiModel,
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 3000,
+            temperature: 0.3,
+        });
+
+        return response.choices[0].message.content.trim();
+    } catch (error) {
+        console.error('OpenAI API error:', error);
+        throw new Error(`OpenAI API error: ${error.message}`);
+    }
+}
+
+// Gemini response handler
+async function getGeminiResponse(apiKey, prompt) {
+    try {
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text().trim();
+    } catch (error) {
+        console.error('Gemini API error:', error);
+        throw new Error(`Gemini API error: ${error.message}`);
+    }
+}
+
+// Claude response handler (placeholder for now)
+async function getClaudeResponse(apiKey, prompt) {
+    
+    throw new Error('Claude integration not yet implemented. Please use OpenAI or Gemini models.');
+}
+
+const PORT = process.env.PORT || 3000;
+
+const certPath = path.join(__dirname, 'cert', 'cert.pem');
+const keyPath = path.join(__dirname, 'cert', 'key.pem');
+
+fs.access(certPath)
+    .then(() => fs.access(keyPath))
+    .then(() => {
+        // HTTPS server with certificates
+        const certs = {
+            key: fs.readFileSync(keyPath, 'utf8'),
+            cert: fs.readFileSync(certPath, 'utf8')
+        };
+        
+        https.createServer(certs, app).listen(PORT, () => {
+            console.log(`HTTPS Server is running on port ${PORT}`);
+        });
+    })
+    .catch(() => {
+        console.warn('SSL certificates not found. Starting HTTP server instead.');
+        app.listen(PORT, () => {
+            console.log(`HTTP Server is running on port ${PORT}`);
+        });
     });
 
-    const analysisResult = response.choices[0].message.content.trim();
-    res.send(analysisResult);
-
-    // 10) Cleanup
-    fs.unlinkSync(dataFilePath);
-
-  } catch (error) {
-    console.error(error);
-    // Enhanced error handling
-    let errorMessage = 'An error occurred while processing your request.';
-    if (error.error && error.error.message) {
-      const errMsg = error.error.message;
-      if (errMsg.includes("'max_tokens' is not supported")) {
-        errorMessage = "Error: The selected model requires a different API key token limit. Please use an API key that supports the chosen model.";
-      } else if (req.body.model === 'claude') {
-        errorMessage = "Error: It appears you're attempting to use Claude, but your API key may be for OpenAI. Please ensure you're using the correct API key for Claude.";
-      } else {
-        errorMessage = errMsg;
-      }
-    }
-    res.status(400).send(errorMessage);
-  }
-});
-
-// 11) HTTPS server startup (unchanged)
-const PORT = process.env.PORT || 3000;
-const certs = {
-  key: fs.readFileSync(path.join(__dirname, 'cert', 'key.pem'), 'utf8'),
-  cert: fs.readFileSync(path.join(__dirname, 'cert', 'cert.pem'), 'utf8')
-};
-https.createServer(certs, app).listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+process.on('SIGTERM', () => {
+    console.log('SIGTERM signal received: closing HTTP server');
+    server.close(() => {
+        console.log('HTTP server closed');
+    });
 });
