@@ -1,13 +1,10 @@
-<!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Meta Tags and Styles -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CAIL: Analyze New Data</title>
 
-    <!-- Stylesheet -->
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -200,7 +197,6 @@
             color: #555;
             margin-top: 5px;
         }
-        /* Add styles for delete and merge buttons */
         .action-button {
             padding: 5px 10px;
             background-color: #e74c3c;
@@ -226,7 +222,6 @@
             color: #3498db;
             text-decoration: underline;
         }
-        /* Styles for checkboxes */
         .checkbox-group {
             margin-top: 10px;
         }
@@ -238,14 +233,85 @@
         .checkbox-group input[type="checkbox"] {
             margin-right: 10px;
         }
-        /* Info icon for research question */
         .info-icon {
             font-size: 16px;
             color: #3498db;
             cursor: pointer;
             margin-left: 5px;
         }
-        /* Responsive Design */
+        .deductive-framework-container {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+        }
+        .deductive-framework-container h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        .deductive-framework-container h3 input[type="checkbox"] {
+            width: auto;
+            height: auto;
+            margin-right: 10px;
+        }
+        .deductive-framework-textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 2px solid #ced4da;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+            overflow-y: scroll;
+            background-color: #f5f5f5;
+        }
+        .deductive-framework-textarea:not(:disabled) {
+            background-color: white;
+        }
+        .deductive-framework-note {
+            font-size: 13px;
+            color: #6c757d;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .progress-container {
+            display: none;
+            width: 100%;
+            height: 30px;
+            background-color: #f0f0f0;
+            border-radius: 15px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #8cc63f;
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .progress-text {
+            text-align: center;
+            margin-top: 10px;
+            color: #666;
+        }
+        .error-message {
+            background-color: #fee;
+            color: #c33;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
         @media (max-width: 600px) {
             .container {
                 margin: 20px;
@@ -258,22 +324,102 @@
                 font-size: 16px;
             }
         }
+        /* Session controls */
+        .session-controls {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f3f3f3;
+            border-radius: 8px;
+        }
+        .session-btn {
+            padding: 8px 16px;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .session-btn:hover {
+            opacity: 0.8;
+        }
+        .file-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            padding: 10px;
+            display: none;
+            margin-top: 10px;
+        }
+        .file-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px;
+            margin-bottom: 5px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+        .file-item button {
+            padding: 2px 8px;
+            font-size: 12px;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: auto;
+            margin-top: 0;
+        }
+        .sort-filter-container {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f5f5f5;
+            border-radius: 8px;
+            display: none;
+        }
+        .sort-filter-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .sort-filter-controls select,
+        .sort-filter-controls input {
+            flex: 1;
+            min-width: 150px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .sort-filter-controls button {
+            width: auto;
+            padding: 8px 16px;
+            margin-top: 0;
+            flex: 0 0 auto;
+        }
+        .filter-info {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
     </style>
 
-    <!-- Include Papa Parse CSV parsing library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 </head>
 <body>
     <div class="container">
         <h1>Analyze New Data</h1>
         <div class="green-bar"></div>
+        
         <form id="cail-form">
             <!-- API Key Input -->
-            <label for="api-key">OpenAI API Key:</label>
-            <input type="password" id="api-key" placeholder="Enter your OpenAI API key" required>
+            <label for="api-key">API Key:</label>
+            <input type="password" id="api-key" placeholder="Enter your API key" required>
 
-            <!-- GPT Model Selection Dropdown -->
-            <label for="model-select">Choose GPT Model / AI:</label>
+            <label for="model-select">Choose AI Model:</label>
             <select id="model-select" required>
                 <option value="chatgpt-4o-latest" selected>
                     ChatGPT-4o Latest: Latest model used in ChatGPT with real-time updates
@@ -297,19 +443,19 @@
                     Claude: Use Anthropic's Claude AI (ensure you have a Claude key)
                 </option>
                 <option value="gemini">
-                    Gemini: Google’s Gemini model
+                    Gemini: Use Google's Gemini AI (ensure you have a Gemini API key)
                 </option>
             </select>
 
             <!-- File Upload -->
             <div class="file-upload">
-                <button type="button" id="upload-btn">Upload Data File</button>
-                <span class="file-name" id="file-name">No file chosen</span>
-                <input type="file" id="data-file" class="hidden-input" accept=".csv, .txt, .json" required>
+                <button type="button" id="upload-btn">Upload Data Files</button>
+                <span class="file-name" id="file-name">No files chosen</span>
+                <input type="file" id="data-file" class="hidden-input" accept=".csv, .txt, .json" multiple required>
             </div>
+            <div id="file-list" class="file-list"></div>
             <p class="file-format-note">Preferred file format: <strong>CSV</strong></p>
 
-            <!-- Research Question with example and info icon -->
             <label for="research-question">
                 Research Question:
                 <span class="info-icon" title="Examples: 'What are common challenges in student group discussions?', 'How do students perceive and address conflicts within group work?', 'What leadership roles or styles commonly emerge in student group projects?'">&#9432;</span>
@@ -332,410 +478,94 @@
                 </div>
             </div>
 
-            <!-- NEW: Coding Framework override -->
-            <label for="framework-input">
-              Coding Framework (JSON): 
-              <span class="info-icon"
-                    title="Deductive example: { 'Agreement': ['brandon likes coding'] }&#10;Inductive example: { 'Connecting math to education': ['we did this in class'] }">
-                &#9432;
-              </span>
-            </label>
-            <textarea id="framework-input" placeholder="Paste your JSON here to override default…"></textarea>
+            <!-- Deductive Framework -->
+            <div class="deductive-framework-container">
+                <h3>
+                    <input type="checkbox" id="use-deductive-framework" style="margin-right: 10px;">
+                    <label for="use-deductive-framework" style="display: inline; font-weight: bold; margin-top: 0;">Use Deductive Framework</label>
+                </h3>
+                <textarea id="deductive-framework" class="deductive-framework-textarea" disabled>ABCDE Framework for Collaborative Activities
 
+A - Agreeing
+Examples: "Yes", "I agree", "That's right", "Exactly"
+Description: Expressing explicit agreement with another speaker's statement
+
+B - Building on ideas
+Examples: "Adding to that...", "Also...", "Furthermore...", "That reminds me of..."
+Description: Extending or elaborating on another's contribution with new information or evidence
+
+C - Chatting (social interactions)
+Examples: "What grade are you in?", "How's your day?", casual conversations
+Description: Social interactions and informal conversations that occur during group work
+
+D - Differing perspectives
+Examples: "I disagree", "Actually, I think...", "Another way to look at it..."
+Description: Offering different viewpoints or disagreeing with previous statements
+
+E - Eliciting responses or actions
+Examples: "What do you think?", "Can you explain?", "Should we...?", "Right?"
+Description: Asking questions or prompting others to contribute or take action</textarea>
+                <p class="deductive-framework-note">You can edit this framework to match your research needs. The AI will use this to guide its analysis of the conversation data.</p>
+            </div>
+            
             <button type="submit">CAILyze!</button>
         </form>
 
-        <!-- Result Display Section -->
+        <!-- Progress bar -->
+        <div class="progress-container" id="progress-container">
+            <div class="progress-bar" id="progress-bar">0%</div>
+        </div>
+        <div class="progress-text" id="progress-text"></div>
+
+        <div class="error-message" id="error-message"></div>
+
+        <!-- Session Controls -->
+        <div class="session-controls">
+            <h3>Session Management</h3>
+            <div>
+                <button id="save-session-btn" class="session-btn" style="background-color: #3498db;" title="Save your current work including settings, data, and analysis results (API key not included)">Save Session</button>
+                <button id="load-session-btn" class="session-btn" style="background-color: #9b59b6;" title="Load a previously saved session file to restore your work">Load Session</button>
+                <button id="clear-session-btn" class="session-btn" style="background-color: #e74c3c;" title="Clear all current data and results while keeping the preset input/output expectations">Clear Session</button>
+                <input type="file" id="session-file" accept=".json" style="display: none;">
+            </div>
+            <div id="session-status" style="margin-top: 10px; color: #666;"></div>
+        </div>
+
         <div id="result-container" class="result-container" style="display:none;">
             <h2>Analysis Result</h2>
             <div class="green-bar"></div>
-            <!-- Add a select all checkbox, merge button, and undo button -->
+            
+            <div class="sort-filter-container" id="sort-filter-container">
+                <h4>Sort and Filter</h4>
+                <div class="sort-filter-controls">
+                    <select id="sort-column">
+                        <option value="">Sort by...</option>
+                    </select>
+                    <select id="sort-order">
+                        <option value="asc">Ascending</option>
+                        <option value="desc">Descending</option>
+                    </select>
+                    <input type="text" id="filter-input" placeholder="Filter results...">
+                    <button type="button" id="apply-filter-btn">Apply</button>
+                    <button type="button" id="clear-filter-btn">Clear</button>
+                </div>
+                <div class="filter-info" id="filter-info"></div>
+            </div>
+            
             <div>
                 <span class="select-all" id="select-all">Select All</span>
                 <button id="merge-selected-btn" class="download-button merge-button" style="display: none;">Merge Selected Rows</button>
                 <button id="undo-btn" class="download-button" style="display: none;">Undo</button>
             </div>
             <div id="result-content" class="result-content"></div>
-            <button id="download-btn" class="download-button" style="display: none;">Download CSV</button>
+            <button id="download-csv-btn" class="download-button" style="display: none;">Download CSV</button>
+            <button id="download-json-btn" class="download-button" style="display: none; margin-left: 10px;">Download JSON</button>
             <button id="rerun-btn" class="download-button" style="display: none; margin-left: 10px;">CAILyze! Again!</button>
         </div>
     </div>
 
     <!-- JavaScript -->
-    <script>
-        // Global variables
-        var resultContent = document.getElementById('result-content');
-        var resultContainer = document.getElementById('result-container');
-        var existingRows = []; // To store existing rows
-        var headers = []; // To store headers globally
-        var lastAction = null; // To store the last action for undo functionality
-
-        // Handle file upload button
-        document.getElementById('upload-btn').addEventListener('click', function() {
-            document.getElementById('data-file').click();
-        });
-
-        // Display selected file name and provide visual feedback
-        document.getElementById('data-file').addEventListener('change', function() {
-            var fileName = this.files[0] ? this.files[0].name : 'No file chosen';
-            document.getElementById('file-name').textContent = fileName;
-
-            // Change button color to indicate success
-            var uploadBtn = document.getElementById('upload-btn');
-            if (this.files[0]) {
-                uploadBtn.style.backgroundColor = '#8cc63f'; // Green color
-                uploadBtn.textContent = 'File Uploaded';
-            } else {
-                uploadBtn.style.backgroundColor = '#8181aa'; // Original color
-                uploadBtn.textContent = 'Upload Data File';
-            }
-        });
-
-        function parseCSV(csvData) {
-            try {
-                const parsedData = Papa.parse(csvData.trim(), {
-                    header: true,
-                    skipEmptyLines: true,
-                    quoteChar: "'",
-                });
-
-                const headers = parsedData.meta.fields;
-                const rows = parsedData.data;
-
-                return { headers, rows };
-            } catch (error) {
-                console.error('Error parsing CSV:', error);
-                return null;
-            }
-        }
-
-        // Helper function to remove markdown code block markers if present
-        function cleanCSVData(data) {
-            return data.replace(/^\s*```csv\s*/i, '').replace(/\s*```\s*$/, '');
-        }
-
-        function generateTable(headers, rows) {
-            const table = document.createElement('table');
-            table.classList.add('result-table');
-
-            // Create table header
-            const thead = table.createTHead();
-            const headerRow = thead.insertRow();
-
-            // Add a header cell for the checkbox
-            const selectHeader = document.createElement('th');
-            selectHeader.textContent = '';
-            headerRow.appendChild(selectHeader);
-
-            headers.forEach(headerText => {
-                const th = document.createElement('th');
-                th.textContent = headerText;
-                headerRow.appendChild(th);
-            });
-
-            // Add a header cell for actions
-            const actionHeader = document.createElement('th');
-            actionHeader.textContent = 'Actions';
-            headerRow.appendChild(actionHeader);
-
-            // Create table body
-            const tbody = table.createTBody();
-            rows.forEach((rowData, rowIndex) => {
-                const row = tbody.insertRow();
-
-                // Add a checkbox cell
-                const selectCell = row.insertCell();
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.classList.add('row-checkbox');
-                checkbox.dataset.index = rowIndex; // Ensure indices are updated
-                selectCell.appendChild(checkbox);
-
-                headers.forEach(headerText => {
-                    const cell = row.insertCell();
-                    cell.textContent = rowData[headerText];
-                });
-
-                // Add actions cell
-                const actionCell = row.insertCell();
-
-                // Delete button
-                const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = 'Delete';
-                deleteBtn.classList.add('action-button');
-                deleteBtn.onclick = function() {
-                    deleteRow(rowIndex);
-                };
-                actionCell.appendChild(deleteBtn);
-            });
-
-            return table;
-        }
-
-        function deleteRow(index) {
-            // Save the state before deletion
-            lastAction = {
-                type: 'delete',
-                previousRows: JSON.parse(JSON.stringify(existingRows)),
-            };
-
-            existingRows.splice(index, 1);
-            refreshTable();
-
-            // Show the undo button
-            document.getElementById('undo-btn').style.display = 'inline-block';
-        }
-
-        function refreshTable() {
-            // Regenerate the table with updated existingRows
-            var table = generateTable(headers, existingRows);
-            resultContent.innerHTML = '';
-            resultContent.appendChild(table);
-
-            // Re-bind events for checkboxes
-            bindRowCheckboxEvents();
-
-            // Hide the undo button if there's no last action
-            if (!lastAction || (lastAction.type !== 'merge' && lastAction.type !== 'delete')) {
-                document.getElementById('undo-btn').style.display = 'none';
-            }
-        }
-
-        function bindRowCheckboxEvents() {
-            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
-            rowCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const anyChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
-                    document.getElementById('merge-selected-btn').style.display = anyChecked ? 'inline-block' : 'none';
-                });
-            });
-        }
-
-        document.getElementById('select-all').addEventListener('click', function() {
-            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
-            const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
-            rowCheckboxes.forEach(cb => cb.checked = !allChecked);
-            const anyChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
-            document.getElementById('merge-selected-btn').style.display = anyChecked ? 'inline-block' : 'none';
-        });
-
-        document.getElementById('merge-selected-btn').addEventListener('click', function() {
-            mergeSelectedRows();
-        });
-
-        function mergeSelectedRows() {
-            const selectedIndices = [];
-            const rowCheckboxes = document.querySelectorAll('.row-checkbox');
-            rowCheckboxes.forEach(cb => {
-                if (cb.checked) {
-                    selectedIndices.push(parseInt(cb.dataset.index));
-                }
-            });
-
-            if (selectedIndices.length < 2) {
-                alert('Please select at least two rows to merge.');
-                return;
-            }
-
-            // Save the current state before merging
-            lastAction = {
-                type: 'merge',
-                previousRows: JSON.parse(JSON.stringify(existingRows)),
-            };
-
-            // Merge the selected rows
-            const mergedRow = {};
-            headers.forEach(header => {
-                mergedRow[header] = '';
-            });
-
-            selectedIndices.forEach(index => {
-                const row = existingRows[index];
-                headers.forEach(header => {
-                    if (row[header]) {
-                        if (mergedRow[header]) {
-                            mergedRow[header] += ' / ' + row[header];
-                        } else {
-                            mergedRow[header] = row[header];
-                        }
-                    }
-                });
-            });
-
-            // Remove the selected rows from existingRows
-            existingRows = existingRows.filter((_, idx) => !selectedIndices.includes(idx));
-
-            // Add the merged row
-            existingRows.push(mergedRow);
-
-            // Refresh the table
-            refreshTable();
-
-            // Show the undo button
-            document.getElementById('undo-btn').style.display = 'inline-block';
-        }
-
-        function undoLastAction() {
-            if (lastAction && (lastAction.type === 'merge' || lastAction.type === 'delete')) {
-                existingRows = lastAction.previousRows;
-                refreshTable();
-
-                // Hide the undo button after undoing
-                document.getElementById('undo-btn').style.display = 'none';
-
-                // Clear the lastAction variable
-                lastAction = null;
-            } else {
-                alert('No action to undo.');
-            }
-        }
-
-        // Event listener for the undo button
-        document.getElementById('undo-btn').addEventListener('click', function() {
-            undoLastAction();
-        });
-
-        function downloadCSV(csvData, filename) {
-            var blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-            var link = document.createElement('a');
-
-            if (navigator.msSaveBlob) { // For IE 10+
-                navigator.msSaveBlob(blob, filename);
-            } else {
-                var url = URL.createObjectURL(blob);
-                link.setAttribute('href', url);
-                link.setAttribute('download', filename);
-                link.style.visibility = 'hidden';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-        }
-
-        document.getElementById('cail-form').addEventListener('submit', function(event) {
-            event.preventDefault();
-            performAnalysis();
-        });
-
-        // Add event listener for rerun button
-        document.getElementById('rerun-btn').addEventListener('click', function() {
-            performAnalysis(true); // Pass 'true' to indicate a rerun
-        });
-
-        function performAnalysis(isRerun = false) {
-            // Show a loading indicator
-            resultContainer.style.display = 'block';
-            if (!isRerun) {
-                resultContent.innerHTML = '<div class="loader"></div><p style="text-align:center;">Processing... This may take a few moments.</p>';
-                existingRows = []; // Clear existing rows on new analysis
-            } else {
-                resultContent.innerHTML += '<div class="loader"></div><p style="text-align:center;">Processing... This may take a few moments.</p>';
-            }
-
-            // Collect form data
-            var apiKey = document.getElementById('api-key').value;
-            var model = document.getElementById('model-select').value;
-            var researchQuestion = document.getElementById('research-question').value;
-            var preprompt = document.getElementById('preprompt').value;
-            var query = document.getElementById('query').value;
-            var frameworkOverride = document.getElementById('framework-input').value.trim();
-
-            // Collect selected additional columns from the checkboxes
-            var additionalColumnsCheckboxes = document.querySelectorAll('input[name="additional-columns"]:checked');
-            var selectedOptions = Array.from(additionalColumnsCheckboxes).map(checkbox => checkbox.value);
-            var additionalColumns = selectedOptions.join(', ');
-
-            var dataFileInput = document.getElementById('data-file');
-            var dataFile = dataFileInput.files[0];
-
-            if (!dataFile) {
-                alert('Please upload a data file.');
-                return;
-            }
-
-            var formData = new FormData();
-            formData.append('api_key', apiKey);
-            formData.append('model', model);
-            formData.append('research_question', researchQuestion);
-            formData.append('preprompt', preprompt);
-            formData.append('query', query);
-            formData.append('framework_override', frameworkOverride);
-            formData.append('additional_columns', additionalColumns);
-            formData.append('data_file', dataFile);
-            formData.append('existing_themes', existingRows.map(row => row['Theme']).join(','));
-
-            fetch('/analyze', {
-                method: 'POST',
-                body: formData
-            })
-            .then(function(response) {
-                if (!response.ok) {
-                    throw new Error(response.statusText);
-                }
-                return response.text();
-            })
-            .then(function(data) {
-                // Remove markdown formatting if present
-                data = cleanCSVData(data);
-                var result = parseCSV(data);
-
-                if (result) {
-                    headers = result.headers;
-                    var rows = result.rows;
-
-                    // Filter out rows where any column has 'N/A'
-                    rows = rows.filter(row => {
-                        return Object.values(row).every(value => {
-                            // Convert value to a string, handling null or undefined
-                            let val = (value !== null && value !== undefined) ? value.toString().trim().toUpperCase() : '';
-                            return val !== 'N/A';
-                        });
-                    });
-
-                    // Append new rows to existingRows
-                    existingRows = existingRows.concat(rows);
-
-                    // Regenerate the table with all rows
-                    var table = generateTable(headers, existingRows);
-
-                    // Clear previous content and display the table
-                    resultContent.innerHTML = '';
-                    resultContent.appendChild(table);
-
-                    // Ensure buttons are visible
-                    document.getElementById('download-btn').style.display = 'inline-block';
-                    document.getElementById('rerun-btn').style.display = 'inline-block';
-
-                    // Bind events for checkboxes
-                    bindRowCheckboxEvents();
-
-                    // Update the download button click event to include all data
-                    document.getElementById('download-btn').onclick = function() {
-                        var csvData = Papa.unparse(existingRows, {
-                            quotes: true,
-                            quoteChar: "'",
-                        });
-                        downloadCSV(csvData, 'analysis_result.csv');
-                    };
-                } else {
-                    resultContent.innerHTML = 'Failed to parse the CSV data.';
-                }
-            })
-            .catch(function(error) {
-                console.error('Error:', error);
-                var errMsg = error.message || 'An error occurred while processing your request.';
-                if (errMsg.toLowerCase().includes("bad request")) {
-                    resultContent.innerHTML = `<p>${errMsg}</p>
-                      <button id="help-btn" class="download-button">Need Help?</button>`;
-                    document.getElementById("help-btn").addEventListener("click", function(){
-                        alert("Please check that your API key is capable of using the selected model. For example, if you are using an OpenAI API key, select an OpenAI-compatible model. If you're trying to use Claude, please ensure you are using a valid Claude API key.");
-                    });
-                } else {
-                    resultContent.innerHTML = errMsg;
-                }
-            });
-        }
-    </script>
+    <script src="app.js"></script>
 </body>
 </html>
 
