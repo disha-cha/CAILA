@@ -8,18 +8,13 @@ var currentSortOrder = 'asc';
 var currentFilter = '';
 var originalRows = [];
 
-// Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    // Set up event listeners
     setupEventListeners();
     
-    // Load any saved session data
     checkForAutoSave();
 });
 
-// Set up all event listeners
 function setupEventListeners() {
-    // File upload
     document.getElementById('upload-btn').addEventListener('click', function() {
         document.getElementById('data-file').click();
     });
@@ -65,13 +60,11 @@ function setupEventListeners() {
     });
 }
 
-// File handling functions
 function handleFileUpload(e) {
     try {
         var files = Array.from(e.target.files);
         if (files.length === 0) return;
         
-        // Validate files
         for (let file of files) {
             if (!validateFile(file)) {
                 showError(`Invalid file type: ${file.name}. Please upload CSV, TXT, or JSON files.`);
