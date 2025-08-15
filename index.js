@@ -3,7 +3,6 @@ const multer = require('multer');
 const fs = require('fs').promises;
 const path = require('path');
 const https = require('https');
-
 const OpenAI = require('openai');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
@@ -40,7 +39,7 @@ app.post('/analyze', upload.array('data_files', 10), async (req, res) => {
         if (validationError) {
             return res.status(400).send(validationError);
         }
-
+        
         const {
             apiKey,
             selectedModel,
@@ -49,13 +48,14 @@ app.post('/analyze', upload.array('data_files', 10), async (req, res) => {
             query,
             additionalColumns,
             existingThemes,
-            deductiveFramework
+            deductiveFramework,
+            useDeductiveCoding
         } = extractRequestData(req);
-
+        
         uploadedFilePaths = req.files.map(file => file.path);
-
+        
         const dataContent = await readAndCombineFiles(req.files);
-
+        
         const prompt = buildPrompt({
             preprompt,
             researchQuestion,
@@ -63,18 +63,19 @@ app.post('/analyze', upload.array('data_files', 10), async (req, res) => {
             query,
             additionalColumns,
             existingThemes,
-            deductiveFramework
+            deductiveFramework,
+            useDeductiveCoding
         });
-
+        
         // Get AI response based on selected model
         const analysisResult = await getAIResponse(selectedModel, apiKey, prompt);
-
+        
         res.send(analysisResult);
-
+        
     } catch (error) {
         console.error('Analysis error:', error);
         
-        // error message
+        // Enhanced error message handling
         let errorMessage = 'An error occurred while processing your request.';
         
         if (error.message) {
@@ -84,6 +85,8 @@ app.post('/analyze', upload.array('data_files', 10), async (req, res) => {
                 errorMessage = 'API quota exceeded. Please check your API usage limits.';
             } else if (error.message.includes('model')) {
                 errorMessage = 'Model error: ' + error.message;
+            } else if (error.message.includes('Cannot find module')) {
+                errorMessage = 'Missing dependency: ' + error.message + '. Please run "npm install" to install all required packages.';
             } else {
                 errorMessage = error.message;
             }
@@ -92,6 +95,7 @@ app.post('/analyze', upload.array('data_files', 10), async (req, res) => {
         res.status(400).send(errorMessage);
         
     } finally {
+        // Clean up uploaded files
         for (const filePath of uploadedFilePaths) {
             try {
                 await fs.unlink(filePath);
@@ -111,8 +115,17 @@ function validateRequest(req) {
         return 'Model selection is required.';
     }
     
-    if (!req.body.research_question) {
-        return 'Research question is required.';
+    // Check if either research question OR deductive framework is provided
+    const useDeductiveCoding = req.body.use_deductive_coding === 'true';
+    
+    if (useDeductiveCoding) {
+        if (!req.body.deductive_framework || req.body.deductive_framework.trim() === '') {
+            return 'Deductive framework is required when using deductive coding.';
+        }
+    } else {
+        if (!req.body.research_question || req.body.research_question.trim() === '') {
+            return 'Research question is required when using inductive coding.';
+        }
     }
     
     if (!req.files || req.files.length === 0) {
@@ -134,12 +147,13 @@ function extractRequestData(req) {
     return {
         apiKey: req.body.api_key,
         selectedModel: req.body.model || 'chatgpt-4o-latest',
-        researchQuestion: req.body.research_question,
+        researchQuestion: req.body.research_question || '',
         preprompt: req.body.preprompt || '',
         query: req.body.query || '',
         additionalColumns: req.body.additional_columns || '',
         existingThemes: req.body.existing_themes || '',
-        deductiveFramework: req.body.deductive_framework || ''
+        deductiveFramework: req.body.deductive_framework || '',
+        useDeductiveCoding: req.body.use_deductive_coding === 'true'
     };
 }
 
@@ -163,53 +177,56 @@ function buildPrompt(params) {
         query,
         additionalColumns,
         existingThemes,
-        deductiveFramework
+        deductiveFramework,
+        useDeductiveCoding
     } = params;
-
+    
     // Build columns list
     let columnsList = ['Theme', 'Description', 'Explanation'];
     if (additionalColumns && additionalColumns.trim() !== '') {
         columnsList = columnsList.concat(additionalColumns.split(',').map(col => col.trim()));
     }
-
+    
     let additionalColumnsDescription = '';
     const additionalColumnsArray = additionalColumns ? additionalColumns.split(',').map(col => col.trim()) : [];
-
+    
     additionalColumnsArray.forEach(col => {
         switch (col) {
             case 'Relevant Quotes':
-                additionalColumnsDescription += `- **${col}**: Provide a direct quote from the data that illustrates the theme. The quote should be enclosed in double quotation marks (") and should not include the speaker's name.\n`;
+                additionalColumnsDescription += `  - **${col}**: Provide a direct quote from the data that illustrates the theme. The quote should be enclosed in double quotation marks (") and should not include the speaker's name.\n`;
                 break;
             case 'Speaker Names':
-                additionalColumnsDescription += `- **${col}**: List the names or identifiers of students who contributed to the theme.\n`;
+                additionalColumnsDescription += `  - **${col}**: List the names or identifiers of students who contributed to the theme.\n`;
                 break;
             case 'Keywords':
-                additionalColumnsDescription += `- **${col}**: List key terms or phrases associated with the theme.\n`;
+                additionalColumnsDescription += `  - **${col}**: List key terms or phrases associated with the theme.\n`;
                 break;
             default:
-                additionalColumnsDescription += `- **${col}**: Provide details for ${col}.\n`;
+                additionalColumnsDescription += `  - **${col}**: Provide details for ${col}.\n`;
                 break;
         }
     });
-
+    
     const csvHeader = columnsList.join(',');
-
+    
     // Build the prompt with clear instructions to analyze the provided data
     let prompt = `IMPORTANT: You must analyze ONLY the conversation data provided below. Do NOT generate generic themes about the topic. Instead, identify themes that emerge from the actual conversations in the data files.\n\n`;
     
-    prompt += `${preprompt}\n\nResearch Question: ${researchQuestion}\n\n`;
+    prompt += `${preprompt}\n\n`;
     
-    // Add deductive framework if provided
-    if (deductiveFramework) {
-        prompt += `Deductive Framework to Consider:\n${deductiveFramework}\n\n`;
-        prompt += `Use this framework to help identify and categorize themes in the conversation data.\n\n`;
+    // Handle inductive vs deductive coding
+    if (useDeductiveCoding) {
+        prompt += `DEDUCTIVE CODING FRAMEWORK:\n${deductiveFramework}\n\n`;
+        prompt += `IMPORTANT: You are performing DEDUCTIVE CODING. Analyze the conversation data and categorize it according to the framework provided above. Look for evidence of each category in the actual conversations.\n\n`;
+    } else {
+        prompt += `Research Question: ${researchQuestion}\n\n`;
+        prompt += `IMPORTANT: You are performing INDUCTIVE CODING. Generate themes that emerge naturally from the data to answer the research question.\n\n`;
     }
     
     prompt += `CONVERSATION DATA TO ANALYZE:\n${dataContent}\n\n`;
     prompt += `END OF CONVERSATION DATA\n\n`;
-
-    const modifiedQuery = `
-CRITICAL INSTRUCTIONS: 
+    
+    const modifiedQuery = `CRITICAL INSTRUCTIONS:
 1. Analyze ONLY the conversation data provided above between "CONVERSATION DATA TO ANALYZE" and "END OF CONVERSATION DATA"
 2. Do NOT generate generic themes about the topic
 3. Each theme must be based on specific content from the conversations
@@ -218,15 +235,15 @@ CRITICAL INSTRUCTIONS:
 ${query}
 
 Additional Instructions:
-Generate themes that emerge from analyzing the actual conversations in the data. ${existingThemes ? `Do not include the following themes: ${existingThemes}.` : ''}
-
-${deductiveFramework ? 'Use the provided deductive framework to help categorize the themes you identify in the conversation data.' : ''}
+${useDeductiveCoding ? 
+    'Use the DEDUCTIVE CODING FRAMEWORK to categorize themes found in the conversation data. Map conversation segments to the pre-defined categories.' : 
+    'Generate themes that emerge from analyzing the actual conversations in the data to answer the research question.'}
+${existingThemes ? `Do not include the following themes: ${existingThemes}.` : ''}
 
 For each theme identified in the conversation data, provide the following columns:
-
-- **Theme**: A concise name for the theme found in the conversations
-- **Description**: A detailed description of how this theme appears in the conversation data
-- **Explanation**: Explain how this theme from the conversations answers the research question
+  - **Theme**: ${useDeductiveCoding ? 'The category from the framework that best fits this segment' : 'A concise name for the theme found in the conversations'}
+  - **Description**: A detailed description of how this theme appears in the conversation data
+  - **Explanation**: ${useDeductiveCoding ? 'Explain how this conversation segment fits into the framework category' : 'Explain how this theme from the conversations answers the research question'}
 ${additionalColumnsDescription}
 
 Requirements:
@@ -236,15 +253,13 @@ Requirements:
 - Focus on patterns, topics, and interactions present in the conversations
 
 Output the data in CSV format, with the following header line:
-
 ${csvHeader}
 
 Each subsequent line should contain the data for one theme found in the conversations.
 
 **Example Output (based on actual conversation content):**
-
 ${csvHeader}
-'Confusion about axes','Students repeatedly express confusion about which variable goes on which axis','This shows a fundamental challenge students face when creating plots'${additionalColumnsArray.includes('Relevant Quotes') ? ',\'"Wait, does time go on x or y?"\'' : ''}${additionalColumnsArray.includes('Keywords') ? ",'axes, x-axis, y-axis, confusion'" : ''}
+'Confusion about axes','Students repeatedly express confusion about which variable goes on which axis','This shows a fundamental challenge students face when creating plots'${additionalColumnsArray.includes('Relevant Quotes') ? ',"Wait, does time go on x or y?"' : ''}${additionalColumnsArray.includes('Keywords') ? ",'axes, x-axis, y-axis, confusion'" : ''}
 
 **Important Notes:**
 - **Analyze the conversation data, not general knowledge about the topic**
@@ -252,7 +267,7 @@ ${csvHeader}
 - **Enclose all fields in single quotes**
 - **Do not include any extra text outside the CSV format**
 `;
-
+    
     return prompt + modifiedQuery;
 }
 
@@ -267,9 +282,9 @@ async function getAIResponse(model, apiKey, prompt) {
         'claude': 'claude',
         'gemini': 'gemini'
     };
-
+    
     const provider = modelMapping[model] || 'openai';
-
+    
     switch (provider) {
         case 'openai':
             return await getOpenAIResponse(model, apiKey, prompt);
@@ -285,7 +300,7 @@ async function getAIResponse(model, apiKey, prompt) {
 // OpenAI response handler
 async function getOpenAIResponse(model, apiKey, prompt) {
     const openai = new OpenAI({ apiKey });
-
+    
     // Map model names to OpenAI model IDs
     const openaiModelMapping = {
         'chatgpt-4o-latest': 'chatgpt-4o-latest',
@@ -295,9 +310,9 @@ async function getOpenAIResponse(model, apiKey, prompt) {
         'o1-mini': 'o1-mini-2024-09-12',
         'o3-mini': 'o3-mini-2025-01-31'
     };
-
+    
     const openaiModel = openaiModelMapping[model] || 'chatgpt-4o-latest';
-
+    
     try {
         const response = await openai.chat.completions.create({
             model: openaiModel,
@@ -305,7 +320,7 @@ async function getOpenAIResponse(model, apiKey, prompt) {
             max_tokens: 3000,
             temperature: 0.3,
         });
-
+        
         return response.choices[0].message.content.trim();
     } catch (error) {
         console.error('OpenAI API error:', error);
@@ -318,7 +333,7 @@ async function getGeminiResponse(apiKey, prompt) {
     try {
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
+        
         const result = await model.generateContent(prompt);
         const response = await result.response;
         return response.text().trim();
@@ -330,7 +345,6 @@ async function getGeminiResponse(apiKey, prompt) {
 
 // Claude response handler (placeholder for now)
 async function getClaudeResponse(apiKey, prompt) {
-    
     throw new Error('Claude integration not yet implemented. Please use OpenAI or Gemini models.');
 }
 
