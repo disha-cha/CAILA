@@ -10,7 +10,7 @@ var originalRows = [];
 
 document.addEventListener('DOMContentLoaded', function() {
     setupEventListeners();
-    
+    initializeCodingTypeToggle(); // ADD THIS LINE
     checkForAutoSave();
 });
 
@@ -48,16 +48,41 @@ function setupEventListeners() {
     document.getElementById('apply-filter-btn').addEventListener('click', applySortAndFilter);
     document.getElementById('clear-filter-btn').addEventListener('click', clearSortAndFilter);
 
-    // Deductive framework checkbox
-    document.getElementById('use-deductive-framework').addEventListener('change', function() {
-        const textarea = document.getElementById('deductive-framework');
-        textarea.disabled = !this.checked;
-        if (this.checked) {
-            textarea.style.backgroundColor = 'white';
+    // REMOVE the deductive framework checkbox listener since we're using radio buttons now
+    // The old checkbox code can be removed
+}
+
+// ADD THIS NEW FUNCTION
+function initializeCodingTypeToggle() {
+    const inductiveRadio = document.getElementById('inductive-coding');
+    const deductiveRadio = document.getElementById('deductive-coding');
+    const researchQuestionSection = document.getElementById('research-question-section');
+    const deductiveFrameworkSection = document.getElementById('deductive-framework-section');
+    const codingDescription = document.getElementById('coding-description');
+    const researchQuestionInput = document.getElementById('research-question');
+    
+    function updateCodingDisplay() {
+        if (inductiveRadio.checked) {
+            // Show research question, hide deductive framework
+            researchQuestionSection.classList.remove('hidden-section');
+            deductiveFrameworkSection.classList.add('hidden-section');
+            researchQuestionInput.setAttribute('required', 'required');
+            codingDescription.textContent = 'Inductive coding: Generate themes that emerge naturally from the data to answer your research question.';
         } else {
-            textarea.style.backgroundColor = '#f5f5f5';
+            // Hide research question, show deductive framework
+            researchQuestionSection.classList.add('hidden-section');
+            deductiveFrameworkSection.classList.remove('hidden-section');
+            researchQuestionInput.removeAttribute('required');
+            codingDescription.textContent = 'Deductive coding: Categorize data according to your predefined framework without needing a research question.';
         }
-    });
+    }
+    
+    // Add event listeners for radio buttons
+    inductiveRadio.addEventListener('change', updateCodingDisplay);
+    deductiveRadio.addEventListener('change', updateCodingDisplay);
+    
+    // Initialize display
+    updateCodingDisplay();
 }
 
 function handleFileUpload(e) {
@@ -161,10 +186,13 @@ async function performAnalysis(isRerun = false) {
     }
 }
 
+// MODIFY THIS FUNCTION
 function validateInputs() {
     const apiKey = document.getElementById('api-key').value;
     const model = document.getElementById('model-select').value;
+    const codingType = document.querySelector('input[name="coding-type"]:checked').value;
     const researchQuestion = document.getElementById('research-question').value;
+    const deductiveFramework = document.getElementById('deductive-framework').value;
     
     if (!apiKey) {
         showError('Please enter your API key.');
@@ -176,9 +204,17 @@ function validateInputs() {
         return false;
     }
     
-    if (!researchQuestion) {
-        showError('Please enter a research question.');
-        return false;
+    // Check based on coding type
+    if (codingType === 'inductive') {
+        if (!researchQuestion) {
+            showError('Please enter a research question for inductive coding.');
+            return false;
+        }
+    } else {
+        if (!deductiveFramework || deductiveFramework.trim() === '') {
+            showError('Please provide a deductive framework for deductive coding.');
+            return false;
+        }
     }
     
     if (uploadedFiles.length === 0) {
@@ -189,22 +225,30 @@ function validateInputs() {
     return true;
 }
 
+// MODIFY THIS FUNCTION
 async function prepareFormData() {
     const formData = new FormData();
+    
+    // Get coding type
+    const codingType = document.querySelector('input[name="coding-type"]:checked').value;
+    const useDeductiveCoding = codingType === 'deductive';
     
     // Basic form fields
     formData.append('api_key', document.getElementById('api-key').value);
     formData.append('model', document.getElementById('model-select').value);
-    formData.append('research_question', document.getElementById('research-question').value);
+    formData.append('use_deductive_coding', useDeductiveCoding);
+    
+    // Add research question or deductive framework based on coding type
+    if (useDeductiveCoding) {
+        formData.append('deductive_framework', document.getElementById('deductive-framework').value);
+        formData.append('research_question', ''); // Send empty for deductive
+    } else {
+        formData.append('research_question', document.getElementById('research-question').value);
+        formData.append('deductive_framework', ''); // Send empty for inductive
+    }
+    
     formData.append('preprompt', document.getElementById('preprompt').value);
     formData.append('query', document.getElementById('query').value);
-    
-    // Deductive framework (only if checkbox is checked)
-    const useDeductiveFramework = document.getElementById('use-deductive-framework').checked;
-    if (useDeductiveFramework) {
-        const deductiveFramework = document.getElementById('deductive-framework').value;
-        formData.append('deductive_framework', deductiveFramework);
-    }
     
     // Additional columns
     const additionalColumnsCheckboxes = document.querySelectorAll('input[name="additional-columns"]:checked');
@@ -600,15 +644,17 @@ function download(data, filename, type) {
     }
 }
 
-// Session management
+// MODIFY THIS FUNCTION
 function saveSession() {
+    const codingType = document.querySelector('input[name="coding-type"]:checked').value;
+    
     const session = {
         timestamp: new Date().toISOString(),
         model: document.getElementById('model-select').value,
+        codingType: codingType,
         researchQuestion: document.getElementById('research-question').value,
         preprompt: document.getElementById('preprompt').value,
         query: document.getElementById('query').value,
-        useDeductiveFramework: document.getElementById('use-deductive-framework').checked,
         deductiveFramework: document.getElementById('deductive-framework').value,
         additionalColumns: Array.from(document.querySelectorAll('input[name="additional-columns"]:checked')).map(cb => cb.value),
         existingRows: existingRows,
@@ -633,6 +679,7 @@ function saveSession() {
     showSessionStatus('Session saved successfully!');
 }
 
+// MODIFY THIS FUNCTION
 function loadSession(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -644,14 +691,30 @@ function loadSession(e) {
             
             // Restore form fields (excluding API key)
             document.getElementById('model-select').value = sessionData.model || 'chatgpt-4o-latest';
+            
+            // Restore coding type if available
+            if (sessionData.codingType) {
+                if (sessionData.codingType === 'deductive') {
+                    document.getElementById('deductive-coding').checked = true;
+                } else {
+                    document.getElementById('inductive-coding').checked = true;
+                }
+                // Trigger the toggle update
+                document.querySelector(`input[name="coding-type"]:checked`).dispatchEvent(new Event('change'));
+            } else {
+                // For old sessions, check if deductive framework was used
+                if (sessionData.useDeductiveFramework) {
+                    document.getElementById('deductive-coding').checked = true;
+                } else {
+                    document.getElementById('inductive-coding').checked = true;
+                }
+                document.querySelector(`input[name="coding-type"]:checked`).dispatchEvent(new Event('change'));
+            }
+            
             document.getElementById('research-question').value = sessionData.researchQuestion || '';
             document.getElementById('preprompt').value = sessionData.preprompt || document.getElementById('preprompt').value;
             document.getElementById('query').value = sessionData.query || document.getElementById('query').value;
-            
-            // Restore deductive framework checkbox and content
-            document.getElementById('use-deductive-framework').checked = sessionData.useDeductiveFramework || false;
             document.getElementById('deductive-framework').value = sessionData.deductiveFramework || document.getElementById('deductive-framework').value;
-            document.getElementById('deductive-framework').disabled = !sessionData.useDeductiveFramework;
             
             // Restore checkboxes
             document.querySelectorAll('input[name="additional-columns"]').forEach(cb => {
@@ -675,6 +738,7 @@ function loadSession(e) {
     reader.readAsText(file);
 }
 
+// MODIFY THIS FUNCTION
 function clearSession() {
     if (confirm('Are you sure you want to clear the current session data? This will clear your analysis results but keep the preset information.')) {
         // Clear form fields except preset info
@@ -682,10 +746,9 @@ function clearSession() {
         document.getElementById('model-select').value = 'chatgpt-4o-latest';
         document.getElementById('research-question').value = '';
         
-        // Clear deductive framework checkbox but keep the default framework text
-        document.getElementById('use-deductive-framework').checked = false;
-        document.getElementById('deductive-framework').disabled = true;
-        document.getElementById('deductive-framework').style.backgroundColor = '#f5f5f5';
+        // Reset to inductive coding (default)
+        document.getElementById('inductive-coding').checked = true;
+        document.querySelector('input[name="coding-type"]:checked').dispatchEvent(new Event('change'));
         
         // Clear checkboxes
         document.querySelectorAll('input[name="additional-columns"]').forEach(cb => {
@@ -797,3 +860,4 @@ setInterval(autoSave, 300000);
 // Make functions available globally for onclick handlers
 window.removeFile = removeFile;
 window.deleteRow = deleteRow;
+
